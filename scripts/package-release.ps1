@@ -41,6 +41,16 @@ foreach ($relativePath in $requiredFiles) {
     }
 }
 
+# 一键部署 / 体检脚本随包发布：用户解压后双击 doctor.bat 即可完成部署，
+# 或在客户端自更新冲掉补丁后用 -Action Repair 补回。母本必须留在安装目录之外。
+$doctorScriptDir = Join-Path $Root "scripts"
+$doctorFiles = @("doctor.ps1", "doctor.bat")
+foreach ($doctorFile in $doctorFiles) {
+    if (-not (Test-Path -LiteralPath (Join-Path $doctorScriptDir $doctorFile) -PathType Leaf)) {
+        throw "发布包缺少随包脚本: scripts\$doctorFile"
+    }
+}
+
 # 发布前同时校验两套目录，尽早阻断旧文件残留造成的入口混装。
 $forbiddenFiles = @(
     "ide\dbghelp.dll",
@@ -69,6 +79,9 @@ try {
             -Destination (Join-Path $productStage $product) -Recurse -Force
         Copy-Item -LiteralPath (Join-Path $OutputDir "config-web.html") -Destination $productStage -Force
         Copy-Item -LiteralPath (Join-Path $OutputDir "使用说明.md") -Destination $productStage -Force
+        foreach ($doctorFile in $doctorFiles) {
+            Copy-Item -LiteralPath (Join-Path $doctorScriptDir $doctorFile) -Destination $productStage -Force
+        }
 
         $zipPath = if ($product -eq "ide") { $ideZip } else { $cliZip }
         Compress-Archive -Path (Join-Path $productStage "*") -DestinationPath $zipPath -Force
